@@ -5,6 +5,7 @@ import tensorflow as tf
 from PIL import Image
 import gdown
 import os
+import zipfile
 
 MODEL_PATH = "unet_oilspill_final.h5"
 GOOGLE_DRIVE_ID = "1NOJ7tL3pL6BJi8xIz8EumPR0BvW8Trd"  # <-- replace with your file ID
@@ -47,5 +48,6 @@ if uploaded_file is not None:
         cv2.applyColorMap((pred_bin*255).astype("uint8"), cv2.COLORMAP_JET), 0.3, 0
     )
     st.image(overlay, caption="Predicted Oil Spill Regions", use_column_width=True)
+
 
 
