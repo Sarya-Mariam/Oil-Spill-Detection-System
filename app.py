@@ -9,7 +9,7 @@ import zipfile
 
 MODEL_PATH = "unet_oilspill_final.h5"
 GOOGLE_DRIVE_ID = "1NOJ7tL3pL6BJi8xIz8EumPR0BvW8Trd"# <-- replace with your file ID
-url = f"https://drive.google.com/uc?id={1K2dd9_P2zIgHrSrq5sNc2kyJtnj1o_gf}"
+url = f"https://drive.google.com/file/d/1K2dd9_P2zIgHrSrq5sNc2kyJtnj1o_gf/view?usp=sharing"
 
 if not os.path.exists("unet_oilspill_final.h5"):
     gdown.download(url, "unet_model.zip", quiet=False, fuzzy=True)
@@ -49,6 +49,7 @@ if uploaded_file is not None:
         cv2.applyColorMap((pred_bin*255).astype("uint8"), cv2.COLORMAP_JET), 0.3, 0
     )
     st.image(overlay, caption="Predicted Oil Spill Regions", use_column_width=True)
+
 
 
 
