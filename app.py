@@ -9,10 +9,12 @@ import os
 MODEL_PATH = "unet_oilspill_final.h5"
 GOOGLE_DRIVE_ID = "1NOJ7tL3pL6BJi8xIz8EumPR0BvW8Trd"  # <-- replace with your file ID
 
-if not os.path.exists(MODEL_PATH):
-    print("Downloading model from Google Drive...")
-    url = f"https://drive.google.com/uc?id={GOOGLE_DRIVE_ID}"
-    gdown.download(url, MODEL_PATH, quiet=False, fuzzy=True)
+if not os.path.exists("unet_oilspill_final.h5"):
+    gdown.download(url, "unet_model.zip", quiet=False, fuzzy=True)
+    import zipfile
+    with zipfile.ZipFile("unet_model.zip", 'r') as zip_ref:
+        zip_ref.extractall(".")
+
 
 model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 
@@ -45,4 +47,5 @@ if uploaded_file is not None:
         cv2.applyColorMap((pred_bin*255).astype("uint8"), cv2.COLORMAP_JET), 0.3, 0
     )
     st.image(overlay, caption="Predicted Oil Spill Regions", use_column_width=True)
+
 
