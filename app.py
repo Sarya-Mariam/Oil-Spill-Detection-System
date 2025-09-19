@@ -34,21 +34,35 @@ st.title("🌊 AI SpillGuard – Oil Spill Detection")
 st.write("Upload a satellite image to detect oil spill regions using a trained U-Net model.")
 
 uploaded_file = st.file_uploader("Upload a satellite image", type=["jpg","jpeg","png","tif"])
+
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    # Preprocess and predict
+    # Preprocess
     arr = preprocess_image(image)
+
+    # Predict segmentation
     pred = model.predict(np.expand_dims(arr, 0))[0]
     pred_bin = (pred[:,:,0] > 0.5).astype("float32")
 
-    # Overlay result
+    # --- New Step: Decide if oil spill exists ---
+    spill_ratio = np.sum(pred_bin) / pred_bin.size
+    THRESHOLD = 0.01  # 1% pixels as oil spill (tune this!)
+    if spill_ratio > THRESHOLD:
+        st.success(f"🌊 Oil Spill Detected! (covering ~{spill_ratio*100:.2f}% of image)")
+    else:
+        st.info("✅ No Oil Spill Detected")
+
+    # Overlay visualization
     overlay = cv2.addWeighted(
         np.array(image.resize((IMG_SIZE, IMG_SIZE))), 0.7,
         cv2.applyColorMap((pred_bin*255).astype("uint8"), cv2.COLORMAP_JET), 0.3, 0
     )
     st.image(overlay, caption="Predicted Oil Spill Regions", use_column_width=True)
+
+
+
 
 
 
