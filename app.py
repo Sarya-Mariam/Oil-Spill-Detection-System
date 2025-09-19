@@ -3,9 +3,22 @@ import numpy as np
 import cv2
 import tensorflow as tf
 from PIL import Image
+import gdown
+import os
+
+MODEL_PATH = "unet_oilspill_final.h5"
+GOOGLE_DRIVE_ID = "1NOJ7tL3pL6BJi8xIz8EumPR0BvW8Trd"  # <-- replace with your file ID
+
+if not os.path.exists(MODEL_PATH):
+    print("Downloading model from Google Drive...")
+    url = f"https://drive.google.com/uc?id={GOOGLE_DRIVE_ID}"
+    gdown.download(url, MODEL_PATH, quiet=False)
+
+model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+
 
 # Load trained model (ensure the file exists in same folder or provide full path)
-model = tf.keras.models.load_model("unet_oilspill_final.h5", compile=False)
+model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 IMG_SIZE = 256
 
 def preprocess_image(img: Image.Image):
