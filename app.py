@@ -37,18 +37,26 @@ uploaded_file = st.file_uploader("Upload a satellite image", type=["jpg","jpeg",
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    st.image(image, caption="Uploaded Image", use_container_width=True)
 
     # Preprocess
     arr = preprocess_image(image)
 
-    # Predict segmentation
+    # Predict segmentation mask
     pred = model.predict(np.expand_dims(arr, 0))[0]
-    pred_bin = (pred[:,:,0] > 0.5).astype("float32")
 
-    # --- New Step: Decide if oil spill exists ---
+    # Step 1: Apply stricter confidence threshold
+    pred_bin = (pred[:,:,0] > 0.7).astype("uint8")
+
+    # Step 2: Morphological filtering to remove noise
+    kernel = np.ones((3,3), np.uint8)
+    pred_bin = cv2.morphologyEx(pred_bin, cv2.MORPH_OPEN, kernel)
+    pred_bin = cv2.morphologyEx(pred_bin, cv2.MORPH_CLOSE, kernel)
+
+    # Step 3: Decide oil spill vs no spill
     spill_ratio = np.sum(pred_bin) / pred_bin.size
-    THRESHOLD = 0.01  # 1% pixels as oil spill (tune this!)
+    THRESHOLD = 0.05  # Require at least 5% of pixels to be spill
+
     if spill_ratio > THRESHOLD:
         st.success(f"🌊 Oil Spill Detected! (covering ~{spill_ratio*100:.2f}% of image)")
     else:
@@ -59,7 +67,8 @@ if uploaded_file is not None:
         np.array(image.resize((IMG_SIZE, IMG_SIZE))), 0.7,
         cv2.applyColorMap((pred_bin*255).astype("uint8"), cv2.COLORMAP_JET), 0.3, 0
     )
-    st.image(overlay, caption="Predicted Oil Spill Regions", use_column_width=True)
+    st.image(overlay, caption="Predicted Oil Spill Regions", use_container_width=True)
+
 
 
 
