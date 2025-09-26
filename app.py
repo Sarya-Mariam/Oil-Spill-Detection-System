@@ -7,22 +7,29 @@ import gdown
 import os
 import zipfile
 
-MODEL_PATH = "unet_oilspill_final.h5"
-GOOGLE_DRIVE_ID = "1NOJ7tL3pL6BJi8xIz8EumPR0BvW8Trd"# <-- replace with your file ID
-url = f"https://drive.google.com/file/d/1K2dd9_P2zIgHrSrq5sNc2kyJtnj1o_gf/view?usp=sharing"
+GOOGLE_DRIVE_ID = "1Uv_V6veGzL-wiVmbtwWVCyacRnzJpUCu"  # your actual file ID
+MODEL_PATH = None  # will be detected automatically
 
-if not os.path.exists("unet_oilspill_final.h5"):
-    gdown.download(url, "unet_model.zip", quiet=False, fuzzy=True)
-    import zipfile
+# Download and extract model if not already present
+if not any(f.endswith(".h5") for f in os.listdir(".")):
+    url = f"https://drive.google.com/uc?id={GOOGLE_DRIVE_ID}"
+    gdown.download(url, "unet_model.zip", quiet=False)
+
     with zipfile.ZipFile("unet_model.zip", 'r') as zip_ref:
         zip_ref.extractall(".")
 
+# Find the first .h5 file in the current directory
+for file in os.listdir("."):
+    if file.endswith(".h5"):
+        MODEL_PATH = file
+        break
 
+if MODEL_PATH is None:
+    raise FileNotFoundError("No .h5 model file found after extraction!")
+
+# Load trained model
 model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 
-
-# Load trained model (ensure the file exists in same folder or provide full path)
-model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 IMG_SIZE = 256
 
 def preprocess_image(img: Image.Image):
@@ -68,6 +75,7 @@ if uploaded_file is not None:
         cv2.applyColorMap((pred_bin*255).astype("uint8"), cv2.COLORMAP_JET), 0.3, 0
     )
     st.image(overlay, caption="Predicted Oil Spill Regions", use_container_width=True)
+
 
 
 
