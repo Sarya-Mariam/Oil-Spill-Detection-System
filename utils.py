@@ -1,6 +1,5 @@
 import os
 import gdown
-import zipfile
 import numpy as np
 from PIL import Image
 import tensorflow as tf
@@ -10,15 +9,12 @@ IMG_SIZE = 256
 MIN_SPILL_AREA_PIXELS = 500
 
 def download_model_if_needed():
-    """Download and extract model from Google Drive if not already present."""
+    """Download model directly from Google Drive if not present."""
     if not os.path.exists(MODEL_PATH):
-        url = "https://drive.google.com/file/d/1k-5vuKHInd1ClXz2Mql8Z_UGjtbYbAxg/view?usp=sharing"
-        output = "dual_head_model.zip"
-        gdown.download(url, output, quiet=False)
-
-        with zipfile.ZipFile(output, "r") as zip_ref:
-            zip_ref.extractall(".")
-        print("✅ Model downloaded and extracted")
+        # 👇 replace with your actual Google Drive file ID
+        url = "https://drive.google.com/file/d/1qgq7nawEts3s-aSJ7mF81zIMwepoQSPi/view?usp=sharing"
+        gdown.download(url, MODEL_PATH, quiet=False)
+        print("✅ Model downloaded")
 
 def load_tf_model():
     """Load TensorFlow/Keras model."""
@@ -53,3 +49,4 @@ def predict_and_analyze(image, threshold=0.5):
     status = "✅ Spill Detected" if spill_pixels > MIN_SPILL_AREA_PIXELS else "❌ No Spill"
 
     return status, image, mask_img, int(spill_pixels), perc_area
+
