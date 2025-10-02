@@ -302,4 +302,4 @@ with st.expander("⚙️ Model Details"):
         st.write(f"**Framework**: TensorFlow/Keras + Segmentation Models")
 
 st.markdown("---")
-st.caption("🛢️ Oil Spill Detection System | Powered by DeepLabV3+ | TensorFlow/Keras")v
+st.caption("🛢️ Oil Spill Detection System | Powered by DeepLabV3+ | TensorFlow/Keras")
