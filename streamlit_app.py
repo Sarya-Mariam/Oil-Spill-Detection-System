@@ -65,6 +65,20 @@ def predict(model, pil_image: Image.Image, size: int):
     _, tensor = preprocess_image_pil(pil_image, size)
     out = model.predict(tensor)
 
+    # --- Debug information ---
+    st.write("🔍 Raw model output type:", type(out))
+    if isinstance(out, (list, tuple)):
+        st.write("🔍 Number of outputs:", len(out))
+        for i, o in enumerate(out):
+            arr = np.array(o)
+            st.write(f"Output[{i}] shape:", arr.shape, "dtype:", arr.dtype,
+                     "min:", float(arr.min()), "max:", float(arr.max()))
+    else:
+        arr = np.array(out)
+        st.write("🔍 Single output shape:", arr.shape, "dtype:", arr.dtype,
+                 "min:", float(arr.min()), "max:", float(arr.max()))
+
+    # --- Interpret outputs ---
     class_out, mask_out = None, None
     if isinstance(out, (list, tuple)) and len(out) >= 2:
         class_out, mask_out = out[0], out[1]
@@ -77,11 +91,11 @@ def predict(model, pil_image: Image.Image, size: int):
     # --- Classification head ---
     is_oil_prob = None
     if class_out is not None:
-        v = np.squeeze(class_out)   # squeeze to scalar if possible
-        if np.ndim(v) == 0:         # single value -> sigmoid
+        v = np.squeeze(class_out)
+        if np.ndim(v) == 0:
             v = float(v)
             is_oil_prob = 1.0 / (1.0 + np.exp(-v))
-        else:                       # multi-class -> softmax
+        else:
             p = np.exp(v) / np.sum(np.exp(v))
             is_oil_prob = float(p[-1])
 
@@ -153,6 +167,7 @@ st.markdown(
 """
 - The model file is automatically downloaded from Google Drive if not found locally.
 - Ensure your Google Drive link/ID is correct.
+- Debug info above shows the raw model outputs (shapes, ranges).
 - If your model expects a different input size or normalization, change `IMG_SIZE` in the sidebar.
 """
 )
