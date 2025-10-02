@@ -24,7 +24,7 @@ st.write("Upload a satellite/aerial image to detect and segment oil spills using
 # Configuration
 IMG_SIZE = 256
 MODEL_PATH = "models/deeplabv3_oil_spill.h5"
-GOOGLE_DRIVE_URL = "https://drive.google.com/uc?id=1jf6OW-jDqKgNGLkYJttNUd_yTo4GvlV3"  # Update this
+GOOGLE_DRIVE_URL = "https://drive.google.com/uc?id=1jf6OW-jDqKgNGLkYJttNUd_yTo4GvlV3" 
 
 # Download model if not present
 if not os.path.exists(MODEL_PATH):
@@ -302,4 +302,4 @@ with st.expander("⚙️ Model Details"):
         st.write(f"**Framework**: TensorFlow/Keras + Segmentation Models")
 
 st.markdown("---")
-st.caption("🛢️ Oil Spill Detection System | Powered by De
+st.caption("🛢️ Oil Spill Detection System | Powered by DeepLabV3+ | TensorFlow/Keras")v
