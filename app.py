@@ -24,7 +24,7 @@ st.write("Upload a satellite/aerial image to detect and segment oil spills using
 # Configuration
 IMG_SIZE = 256
 MODEL_PATH = "models/deeplabv3_oil_spill.h5"
-GOOGLE_DRIVE_URL = "https://drive.google.com/uc?id=YOUR_MODEL_ID_HERE"  # Update this
+GOOGLE_DRIVE_URL = "https://drive.google.com/uc?id=1jf6OW-jDqKgNGLkYJttNUd_yTo4GvlV3"  # Update this
 
 # Download model if not present
 if not os.path.exists(MODEL_PATH):
