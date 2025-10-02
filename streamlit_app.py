@@ -1,11 +1,15 @@
+# Streamlit app to classify and segment oil spills using a dual-head UNet model
+# The model file is downloaded automatically from Google Drive if not present locally.
+
 import os
 import io
+import zipfile
 from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageOps
 import streamlit as st
-
+import gdown
 from tensorflow import keras
 
 st.set_page_config(layout="wide", page_title="Oil-spill Detector & Segmenter")
@@ -17,13 +21,21 @@ st.write("Upload an image; the app will predict whether it contains an oil spill
 st.sidebar.header("Model configuration")
 IMG_SIZE = st.sidebar.number_input("Model input size (square)", min_value=32, max_value=2048, value=256, step=32)
 
-MODEL_PATH = Path("models/dual_head_best.h5")
+MODEL_PATH = "models/dual_head_best.h5"
+GOOGLE_DRIVE_URL = "https://drive.google.com/uc?id=1k-5vuKHInd1ClXz2Mql8Z_UGjtbYbAxg"
 
+# Ensure model exists locally
+if not os.path.exists(MODEL_PATH):
+    st.info("Model not found locally. Downloading from Google Drive...")
+    os.makedirs("models", exist_ok=True)
+    zip_path = "models/model.zip"
+    gdown.download(GOOGLE_DRIVE_URL, zip_path, quiet=False, fuzzy=True)
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
+        zip_ref.extractall("models")
+
+# Load model
 @st.cache_resource
 def load_model(path: str):
-    if not os.path.exists(path):
-        st.error(f"Model file not found at {path}")
-        return None
     try:
         model = keras.models.load_model(path, compile=False)
         st.success("Loaded model successfully (Keras)")
@@ -32,6 +44,9 @@ def load_model(path: str):
         st.error(f"Failed to load model: {e}")
         return None
 
+model_obj = load_model(MODEL_PATH)
+
+# Preprocessing & helpers
 def preprocess_image_pil(img: Image.Image, size: int):
     img = img.convert('RGB')
     img = ImageOps.fit(img, (size, size), Image.BILINEAR)
@@ -47,7 +62,6 @@ def postprocess_mask(mask: np.ndarray, orig_size):
     return bin_mask
 
 def predict(model, pil_image: Image.Image, size: int):
-    orig_size = pil_image.size  # (W,H)
     _, tensor = preprocess_image_pil(pil_image, size)
     out = model.predict(tensor)
 
@@ -77,9 +91,6 @@ def predict(model, pil_image: Image.Image, size: int):
 
     return is_oil_prob, mask_prob
 
-# Load model once
-model_obj = load_model(str(MODEL_PATH))
-
 # Image uploader
 st.header("Upload image to analyze")
 uploaded_image = st.file_uploader("Upload image (jpg/png/tif...)", type=['jpg','jpeg','png','tif','tiff'])
@@ -93,7 +104,7 @@ if uploaded_image:
         st.image(pil, use_column_width=True)
 
     if not model_obj:
-        st.warning("Model not loaded yet. Ensure dual_head_best.h5 is in models/ directory.")
+        st.warning("Model not loaded yet.")
     else:
         with st.spinner("Running prediction..."):
             try:
@@ -137,12 +148,11 @@ st.markdown("---")
 st.subheader("Troubleshooting & tips")
 st.markdown(
 """
-- Ensure your model file `dual_head_best.h5` is downloaded into `models/` (via setup.sh).
-- If your model expects a different input size or normalization, change `IMG_SIZE` or update `preprocess_image_pil`.
-- For large deployments, confirm Google Drive download works during build (see setup.sh).
+- The model file is automatically downloaded from Google Drive if not found locally.
+- Ensure your Google Drive link/ID is correct.
+- If your model expects a different input size or normalization, change `IMG_SIZE` in the sidebar.
 """
 )
-
 
 
 
