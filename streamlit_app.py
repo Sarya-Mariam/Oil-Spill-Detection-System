@@ -78,13 +78,14 @@ def predict(model, pil_image: Image.Image, size: int):
     # Classification probability
     is_oil_prob = None
     if class_out is not None:
-        v = np.squeeze(class_out)
-        if np.ndim(v) == 0:
+        v = np.squeeze(class_out)   # remove batch/extra dims
+        if np.ndim(v) == 0:         # scalar → sigmoid
             v = float(v)
-            is_oil_prob = 1.0 / (1.0 + np.exp(-v))  # sigmoid
-        else:
-            p = np.exp(v) / np.sum(np.exp(v))       # softmax
-            is_oil_prob = float(p[-1])
+            is_oil_prob = 1.0 / (1.0 + np.exp(-v))
+        elif np.ndim(v) == 1:       # vector → softmax
+            p = np.exp(v) / np.sum(np.exp(v))
+            is_oil_prob = float(p[-1])   # take last class
+
 
     # Segmentation mask
     mask_prob = None
@@ -157,6 +158,7 @@ st.markdown(
 - If your model expects a different input size or normalization, change `IMG_SIZE` in the sidebar.
 """
 )
+
 
 
 
