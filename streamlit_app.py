@@ -17,9 +17,7 @@ st.set_page_config(layout="wide", page_title="Oil-spill Detector & Segmenter")
 st.title("Oil-spill Detector — Dual-head UNet")
 st.write("Upload an image; the app will predict whether it contains an oil spill and show the segmented region.")
 
-# Sidebar config
-st.sidebar.header("Model configuration")
-IMG_SIZE = st.sidebar.number_input("Model input size (square)", min_value=32, max_value=2048, value=256, step=32)
+IMG_SIZE = 256  # or whatever your model was trained with
 
 MODEL_PATH = "models/dual_head_best.h5"
 GOOGLE_DRIVE_URL = "https://drive.google.com/uc?id=1k-5vuKHInd1ClXz2Mql8Z_UGjtbYbAxg"
@@ -158,6 +156,7 @@ st.markdown(
 - If your model expects a different input size or normalization, change `IMG_SIZE` in the sidebar.
 """
 )
+
 
 
 
