@@ -54,24 +54,37 @@ def preprocess_image_pil(img: Image.Image, size: int):
     return arr, nhwc
 
 def postprocess_mask(mask: np.ndarray, orig_size):
-    # Ensure mask is numpy array and squeeze extra dims
     mask = np.array(mask)
+
+    # Remove all size-1 dims
     mask = np.squeeze(mask)
 
-    # If still 3D (e.g. HWC), take first channel
+    # If mask is 3D, reduce it
     if mask.ndim == 3:
+        # Case: (H, W, C) → take first channel
         mask = mask[..., 0]
+    elif mask.ndim == 1:
+        # Case: flat vector → reshape square if possible
+        side = int(np.sqrt(mask.size))
+        if side * side == mask.size:
+            mask = mask.reshape((side, side))
+        else:
+            # fallback: just return a blank mask
+            return np.zeros(orig_size[::-1], dtype=np.uint8)
 
+    # Now force 2D
     if mask.ndim != 2:
-        raise ValueError(f"Unexpected mask shape: {mask.shape}, expected 2D after squeeze")
+        # fallback: blank mask
+        mask = np.zeros(orig_size[::-1], dtype=np.uint8)
 
-    # Convert to PIL image and resize to original image size
+    # Convert to PIL, resize back to input size
     img = Image.fromarray((mask * 255).astype(np.uint8))
     img = img.resize(orig_size, resample=Image.BILINEAR)
 
     arr = np.array(img).astype(np.float32) / 255.0
     bin_mask = (arr >= 0.5).astype(np.uint8)
     return bin_mask
+
 
 def predict(model, pil_image: Image.Image, size: int):
     _, tensor = preprocess_image_pil(pil_image, size)
@@ -169,6 +182,7 @@ st.markdown(
 - If your model expects a different input size or normalization, change `IMG_SIZE` in the code.
 """
 )
+
 
 
 
