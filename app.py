@@ -1,4 +1,4 @@
-# Streamlit app for DeepLabV3+ Oil Spill Detection
+ # Streamlit app for DeepLabV3+ Oil Spill Detection
 # This app uses a dual-head DeepLabV3+ model for classification and segmentation
 
 import os
@@ -11,10 +11,6 @@ from PIL import Image, ImageOps
 import streamlit as st
 import gdown
 from tensorflow import keras
-import segmentation_models as sm
-
-# Set segmentation models framework
-sm.set_framework('tf.keras')
 
 st.set_page_config(layout="wide", page_title="Oil Spill Detector - DeepLabV3+")
 
@@ -24,7 +20,7 @@ st.write("Upload a satellite/aerial image to detect and segment oil spills using
 # Configuration
 IMG_SIZE = 256
 MODEL_PATH = "models/deeplabv3_oil_spill.h5"
-GOOGLE_DRIVE_URL = "https://drive.google.com/uc?id=1jf6OW-jDqKgNGLkYJttNUd_yTo4GvlV3" 
+GOOGLE_DRIVE_URL = "https://drive.google.com/uc?id=1jf6OW-jDqKgNGLkYJttNUd_yTo4GvlV3"
 
 # Download model if not present
 if not os.path.exists(MODEL_PATH):
@@ -42,16 +38,8 @@ if not os.path.exists(MODEL_PATH):
 def load_model(path: str):
     """Load the DeepLabV3+ model"""
     try:
-        # Load with custom objects for segmentation models
-        model = keras.models.load_model(
-            path, 
-            custom_objects={
-                'dice_loss_plus_1binary_focal_loss': sm.losses.DiceLoss() + sm.losses.BinaryFocalLoss(),
-                'iou_score': sm.metrics.IOUScore(threshold=0.5),
-                'f1-score': sm.metrics.FScore(threshold=0.5)
-            },
-            compile=False
-        )
+        # Load model without custom objects
+        model = keras.models.load_model(path, compile=False)
         st.success("✅ Model loaded successfully!")
         return model
     except Exception as e:
@@ -303,3 +291,4 @@ with st.expander("⚙️ Model Details"):
 
 st.markdown("---")
 st.caption("🛢️ Oil Spill Detection System | Powered by DeepLabV3+ | TensorFlow/Keras")
+
