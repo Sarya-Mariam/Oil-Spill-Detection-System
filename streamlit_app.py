@@ -74,9 +74,10 @@ def postprocess_mask(mask: np.ndarray, target_size, threshold=0.5):
         st.error(f"Unexpected mask shape after processing: {mask.shape}")
         return np.zeros((target_size[1], target_size[0]), dtype=np.uint8)
     
-    # Normalize if needed
-    if mask.max() > 1.0:
-        mask = mask / 255.0
+    # Apply threshold BEFORE normalization (mask might be logits)
+    # Apply sigmoid if values look like logits
+    if mask.min() < 0 or mask.max() > 1:
+        mask = 1.0 / (1.0 + np.exp(-mask))  # sigmoid
     
     # Resize to original image size
     mask_img = Image.fromarray((mask * 255).astype(np.uint8))
@@ -107,51 +108,48 @@ def predict(model, pil_image: Image.Image, size: int):
     else:
         st.sidebar.write(f"Model output shape: {out.shape}")
     
-    # Parse outputs - adjust based on your model architecture
+    # Parse outputs based on YOUR model structure:
+    # Output 0: (1, 256, 256, 1) - Segmentation
+    # Output 1: (1, 1) - Classification
     classification_prob = None
     segmentation_mask = None
     
-    if isinstance(out, (list, tuple)):
-        # Dual-head model with separate outputs
-        if len(out) >= 2:
-            # Typically: [classification_output, segmentation_output]
-            class_out = out[0]
-            seg_out = out[1]
-            
-            # Process classification output
-            class_out = np.squeeze(class_out)
-            if class_out.ndim == 0:
-                # Single sigmoid output
-                classification_prob = float(class_out)
-                # Apply sigmoid if needed (raw logit)
-                if classification_prob < 0 or classification_prob > 1:
-                    classification_prob = 1.0 / (1.0 + np.exp(-classification_prob))
-            elif class_out.ndim == 1:
-                # Softmax output (2 classes: no-oil, oil)
-                if class_out.shape[0] == 2:
-                    probs = np.exp(class_out) / np.sum(np.exp(class_out))
-                    classification_prob = float(probs[1])  # probability of oil class
-                else:
-                    classification_prob = float(class_out[0])
-            
-            # Segmentation mask
-            segmentation_mask = seg_out
+    if isinstance(out, (list, tuple)) and len(out) >= 2:
+        # Your model: [segmentation, classification]
+        seg_out = out[0]  # (1, 256, 256, 1)
+        class_out = out[1]  # (1, 1)
+        
+        # Process classification output (1, 1) -> scalar
+        class_val = float(np.squeeze(class_out))
+        # Apply sigmoid if it's a logit
+        if class_val < 0 or class_val > 1:
+            classification_prob = 1.0 / (1.0 + np.exp(-class_val))
+        else:
+            classification_prob = class_val
+        
+        # Segmentation mask
+        segmentation_mask = seg_out
+        
+    elif isinstance(out, (list, tuple)):
+        # Fallback for other dual-output formats
+        st.warning("Unexpected number of outputs, using first two")
+        segmentation_mask = out[0]
+        if len(out) > 1:
+            classification_prob = float(np.squeeze(out[1]))
     else:
-        # Single output - could be either classification or segmentation
+        # Single output
         if out.shape[-1] == 1 and len(out.shape) == 4:
-            # Likely segmentation mask (B, H, W, 1)
             segmentation_mask = out
-        elif out.shape[-1] <= 2 and len(out.shape) == 2:
-            # Likely classification (B, num_classes)
-            class_out = np.squeeze(out)
-            if class_out.ndim == 1 and len(class_out) == 2:
-                probs = np.exp(class_out) / np.sum(np.exp(class_out))
-                classification_prob = float(probs[1])
-            else:
-                classification_prob = float(class_out)
+        else:
+            classification_prob = float(np.squeeze(out))
     
     return classification_prob, segmentation_mask
 
+
+# Sidebar controls
+st.sidebar.header("Segmentation Settings")
+threshold = st.sidebar.slider("Mask threshold", 0.0, 1.0, 0.5, 0.05, 
+                               help="Higher = less sensitive, Lower = more sensitive")
 
 # Image uploader
 st.header("Upload image to analyze")
@@ -195,20 +193,23 @@ if uploaded_image:
             # Segmentation results
             if mask_array is not None:
                 try:
-                    bin_mask = postprocess_mask(mask_array, pil.size, threshold=0.5)
+                    bin_mask = postprocess_mask(mask_array, pil.size, threshold=threshold)
                     
                     # Calculate coverage
                     coverage = (bin_mask.sum() / bin_mask.size) * 100
                     st.metric("Predicted oil coverage", f"{coverage:.2f}%")
                     
-                    # Create overlay
+                    # Create overlay (only show oil regions)
                     overlay = pil.convert('RGBA')
                     mask_img = Image.fromarray((bin_mask * 255).astype('uint8')).convert('L')
                     color_mask = Image.new('RGBA', pil.size, (255, 0, 0, 120))
                     overlay.paste(color_mask, (0, 0), mask_img)
 
                     st.image(overlay, caption='Overlay: red = predicted oil region', use_container_width=True)
-                    st.image(bin_mask * 255, caption='Binary mask (white = predicted oil)', use_container_width=True)
+                    
+                    # Binary mask - BLACK for oil spill, WHITE for background
+                    inverted_mask = (1 - bin_mask) * 255  # Invert: oil=0 (black), background=255 (white)
+                    st.image(inverted_mask, caption='Binary mask (black = predicted oil)', use_container_width=True)
 
                     # Download buttons
                     buf = io.BytesIO()
@@ -217,7 +218,7 @@ if uploaded_image:
                     st.download_button('📥 Download overlay PNG', data=buf, file_name='overlay.png', mime='image/png')
 
                     buf2 = io.BytesIO()
-                    Image.fromarray((bin_mask * 255).astype('uint8')).save(buf2, format='PNG')
+                    Image.fromarray(inverted_mask.astype('uint8')).save(buf2, format='PNG')
                     buf2.seek(0)
                     st.download_button('📥 Download mask PNG', data=buf2, file_name='mask.png', mime='image/png')
                     
@@ -235,12 +236,11 @@ st.markdown(
 """
 - The model file is automatically downloaded from Google Drive if not found locally.
 - **Debug info** is shown in the sidebar when you run a prediction
-- If results look wrong, check the output shapes in the sidebar
-- Default threshold for segmentation is 0.5 (50%)
-- Ensure your model expects 256×256 input images
+- Use the threshold slider in the sidebar to adjust sensitivity
+- Binary mask: **BLACK = oil spill**, WHITE = background
+- If the overlay covers everything, try adjusting the threshold
 """
 )
-
 
 
 
