@@ -74,15 +74,18 @@ def predict(model, pil_image: Image.Image, size: int):
         elif out.ndim == 2:
             class_out = out
 
+    # --- Classification head ---
     is_oil_prob = None
     if class_out is not None:
-        v = np.squeeze(class_out)
-        if v.size > 1:  # softmax
+        v = np.squeeze(class_out)   # squeeze to scalar if possible
+        if np.ndim(v) == 0:         # single value -> sigmoid
+            v = float(v)
+            is_oil_prob = 1.0 / (1.0 + np.exp(-v))
+        else:                       # multi-class -> softmax
             p = np.exp(v) / np.sum(np.exp(v))
             is_oil_prob = float(p[-1])
-        else:           # sigmoid
-            is_oil_prob = float(1.0 / (1.0 + np.exp(-v)))
 
+    # --- Segmentation head ---
     mask_prob = None
     if mask_out is not None:
         mask_prob = np.squeeze(mask_out)
