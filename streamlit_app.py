@@ -53,11 +53,18 @@ def preprocess_image_pil(img: Image.Image, size: int):
     return arr, nhwc
 
 def postprocess_mask(mask: np.ndarray, orig_size):
+    # Ensure mask is 2D
+    mask = np.squeeze(mask)  
+
+    if mask.ndim != 2:
+        raise ValueError(f"Unexpected mask shape: {mask.shape}, expected 2D")
+
     img = Image.fromarray((mask * 255).astype(np.uint8))
     img = img.resize(orig_size, resample=Image.BILINEAR)
     arr = np.array(img).astype(np.float32) / 255.0
     bin_mask = (arr >= 0.5).astype(np.uint8)
     return bin_mask
+
 
 def predict(model, pil_image: Image.Image, size: int):
     _, tensor = preprocess_image_pil(pil_image, size)
@@ -156,6 +163,7 @@ st.markdown(
 - If your model expects a different input size or normalization, change `IMG_SIZE` in the sidebar.
 """
 )
+
 
 
 
