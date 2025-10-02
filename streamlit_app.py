@@ -17,7 +17,8 @@ st.set_page_config(layout="wide", page_title="Oil-spill Detector & Segmenter")
 st.title("Oil-spill Detector — Dual-head UNet")
 st.write("Upload an image; the app will predict whether it contains an oil spill and show the segmented region.")
 
-IMG_SIZE = 256  # or whatever your model was trained with
+# Fixed model input size (remove adjuster to avoid confusion)
+IMG_SIZE = 256  # set this to the size your model expects
 
 MODEL_PATH = "models/dual_head_best.h5"
 GOOGLE_DRIVE_URL = "https://drive.google.com/uc?id=1k-5vuKHInd1ClXz2Mql8Z_UGjtbYbAxg"
@@ -53,18 +54,24 @@ def preprocess_image_pil(img: Image.Image, size: int):
     return arr, nhwc
 
 def postprocess_mask(mask: np.ndarray, orig_size):
-    # Ensure mask is 2D
-    mask = np.squeeze(mask)  
+    # Ensure mask is numpy array and squeeze extra dims
+    mask = np.array(mask)
+    mask = np.squeeze(mask)
+
+    # If still 3D (e.g. HWC), take first channel
+    if mask.ndim == 3:
+        mask = mask[..., 0]
 
     if mask.ndim != 2:
-        raise ValueError(f"Unexpected mask shape: {mask.shape}, expected 2D")
+        raise ValueError(f"Unexpected mask shape: {mask.shape}, expected 2D after squeeze")
 
+    # Convert to PIL image and resize to original image size
     img = Image.fromarray((mask * 255).astype(np.uint8))
     img = img.resize(orig_size, resample=Image.BILINEAR)
+
     arr = np.array(img).astype(np.float32) / 255.0
     bin_mask = (arr >= 0.5).astype(np.uint8)
     return bin_mask
-
 
 def predict(model, pil_image: Image.Image, size: int):
     _, tensor = preprocess_image_pil(pil_image, size)
@@ -83,14 +90,13 @@ def predict(model, pil_image: Image.Image, size: int):
     # Classification probability
     is_oil_prob = None
     if class_out is not None:
-        v = np.squeeze(class_out)   # remove batch/extra dims
-        if np.ndim(v) == 0:         # scalar → sigmoid
+        v = np.squeeze(class_out)
+        if np.ndim(v) == 0:
             v = float(v)
-            is_oil_prob = 1.0 / (1.0 + np.exp(-v))
-        elif np.ndim(v) == 1:       # vector → softmax
-            p = np.exp(v) / np.sum(np.exp(v))
-            is_oil_prob = float(p[-1])   # take last class
-
+            is_oil_prob = 1.0 / (1.0 + np.exp(-v))  # sigmoid
+        elif np.ndim(v) == 1:
+            p = np.exp(v) / np.sum(np.exp(v))       # softmax
+            is_oil_prob = float(p[-1])
 
     # Segmentation mask
     mask_prob = None
@@ -111,7 +117,7 @@ if uploaded_image:
     pil = Image.open(uploaded_image)
     with col1:
         st.subheader("Input image")
-        st.image(pil, use_column_width=True)
+        st.image(pil, use_container_width=True)
 
     if not model_obj:
         st.warning("Model not loaded yet.")
@@ -139,8 +145,8 @@ if uploaded_image:
                 color_mask = Image.new('RGBA', pil.size, (255,0,0,120))
                 overlay.paste(color_mask, (0,0), mask_img)
 
-                st.image(overlay, caption='Overlay: red = predicted oil region', use_column_width=True)
-                st.image(bin_mask*255, caption='Binary mask (white = predicted oil)', use_column_width=True)
+                st.image(overlay, caption='Overlay: red = predicted oil region', use_container_width=True)
+                st.image(bin_mask*255, caption='Binary mask (white = predicted oil)', use_container_width=True)
 
                 buf = io.BytesIO()
                 overlay.save(buf, format='PNG')
@@ -160,11 +166,9 @@ st.markdown(
 """
 - The model file is automatically downloaded from Google Drive if not found locally.
 - Ensure your Google Drive link/ID is correct.
-- If your model expects a different input size or normalization, change `IMG_SIZE` in the sidebar.
+- If your model expects a different input size or normalization, change `IMG_SIZE` in the code.
 """
 )
-
-
 
 
 
