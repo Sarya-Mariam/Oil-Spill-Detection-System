@@ -65,20 +65,7 @@ def predict(model, pil_image: Image.Image, size: int):
     _, tensor = preprocess_image_pil(pil_image, size)
     out = model.predict(tensor)
 
-    # --- Debug information ---
-    st.write("🔍 Raw model output type:", type(out))
-    if isinstance(out, (list, tuple)):
-        st.write("🔍 Number of outputs:", len(out))
-        for i, o in enumerate(out):
-            arr = np.array(o)
-            st.write(f"Output[{i}] shape:", arr.shape, "dtype:", arr.dtype,
-                     "min:", float(arr.min()), "max:", float(arr.max()))
-    else:
-        arr = np.array(out)
-        st.write("🔍 Single output shape:", arr.shape, "dtype:", arr.dtype,
-                 "min:", float(arr.min()), "max:", float(arr.max()))
-
-    # --- Interpret outputs ---
+    # Try to split classification and segmentation
     class_out, mask_out = None, None
     if isinstance(out, (list, tuple)) and len(out) >= 2:
         class_out, mask_out = out[0], out[1]
@@ -88,18 +75,18 @@ def predict(model, pil_image: Image.Image, size: int):
         elif out.ndim == 2:
             class_out = out
 
-    # --- Classification head ---
+    # Classification probability
     is_oil_prob = None
     if class_out is not None:
         v = np.squeeze(class_out)
         if np.ndim(v) == 0:
             v = float(v)
-            is_oil_prob = 1.0 / (1.0 + np.exp(-v))
+            is_oil_prob = 1.0 / (1.0 + np.exp(-v))  # sigmoid
         else:
-            p = np.exp(v) / np.sum(np.exp(v))
+            p = np.exp(v) / np.sum(np.exp(v))       # softmax
             is_oil_prob = float(p[-1])
 
-    # --- Segmentation head ---
+    # Segmentation mask
     mask_prob = None
     if mask_out is not None:
         mask_prob = np.squeeze(mask_out)
@@ -167,7 +154,6 @@ st.markdown(
 """
 - The model file is automatically downloaded from Google Drive if not found locally.
 - Ensure your Google Drive link/ID is correct.
-- Debug info above shows the raw model outputs (shapes, ranges).
 - If your model expects a different input size or normalization, change `IMG_SIZE` in the sidebar.
 """
 )
